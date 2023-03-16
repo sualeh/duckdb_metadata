@@ -23,4 +23,5 @@ jobs:
       run: |
         # Build
         mvn \
+          --no-transfer-progress \
           test
