@@ -13,7 +13,6 @@ import java.sql.Connection;
 import javax.sql.DataSource;
 
 import org.apache.commons.dbcp2.BasicDataSource;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import schemacrawler.schemacrawler.LoadOptionsBuilder;
@@ -51,17 +50,18 @@ public class DuckDBTest {
     return ds;
   }
 
-  private DataSource dataSource;
-
-  @BeforeEach
-  public void createDatabase() throws Exception {
+  private static DataSource createDatabase() throws Exception {
     final Path databasePath = IOUtility.createTempFilePath("SC.DuckDB", "db");
-    dataSource = createDataSource("jdbc:duckdb:" + databasePath, null, null, null);
+    DataSource dataSource = createDataSource("jdbc:duckdb:" + databasePath, null, null, null);
     createDatabaseFromScript(dataSource, "/duckdb.scripts.sql");
+    return dataSource;
   }
 
   @Test
   public void testDuckDBWithConnection() throws Exception {
+
+    final DataSource dataSource = createDatabase();
+
     final LoadOptionsBuilder loadOptionsBuilder =
         LoadOptionsBuilder.builder().withSchemaInfoLevel(SchemaInfoLevelBuilder.maximum());
     final SchemaCrawlerOptions schemaCrawlerOptions =
@@ -75,13 +75,11 @@ public class DuckDBTest {
     executable.setSchemaCrawlerOptions(schemaCrawlerOptions);
     executable.setAdditionalConfiguration(SchemaTextOptionsBuilder.builder(textOptions).toConfig());
 
+    final DatabaseConnectionSource databaseConnectionSource =
+        DatabaseConnectionSources.fromDataSource(dataSource);
     final String expectedResource = String.format("testDuckDBWithConnection.%s.txt", javaVersion());
     assertThat(
-        outputOf(executableExecution(getDataSource(), executable)),
+        outputOf(executableExecution(databaseConnectionSource, executable)),
         hasSameContentAs(classpathResource(expectedResource)));
-  }
-
-  private DatabaseConnectionSource getDataSource() {
-    return DatabaseConnectionSources.fromDataSource(dataSource);
   }
 }
